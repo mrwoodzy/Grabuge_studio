@@ -10,8 +10,13 @@ public class HubCameraFollow : MonoBehaviour
     private Vector3 initialOffset;
 
     [Header("Camera Limits")]
-    public Vector2 minPosition;
-    public Vector2 maxPosition;
+    public float minX;
+    public float maxX;
+    public float minZ;
+    public float maxZ;
+
+    [Header("Fixed Rotation")]
+    public Vector3 fixedRotationEulerAngles = new Vector3(45f, 0f, 0f);
 
     void Start()
     {
@@ -19,6 +24,9 @@ public class HubCameraFollow : MonoBehaviour
         {
             initialOffset = transform.position - target.position;
         }
+
+        // Appliquer la rotation fixe au démarrage
+        transform.rotation = Quaternion.Euler(fixedRotationEulerAngles);
     }
 
     void FixedUpdate()
@@ -27,11 +35,14 @@ public class HubCameraFollow : MonoBehaviour
 
         Vector3 desiredPosition = target.position + initialOffset;
 
-        // Appliquer les limites sur X et Z
-        desiredPosition.x = Mathf.Clamp(desiredPosition.x, minPosition.x, maxPosition.x);
-        desiredPosition.z = Mathf.Clamp(desiredPosition.z, minPosition.y, maxPosition.y);
+        // Appliquer les limites
+        desiredPosition.x = Mathf.Clamp(desiredPosition.x, minX, maxX);
+        desiredPosition.z = Mathf.Clamp(desiredPosition.z, minZ, maxZ);
 
-        // Mouvement fluide synchronisé à la physique
+        // Suivi fluide
         transform.position = Vector3.Lerp(transform.position, desiredPosition, followSpeed * Time.fixedDeltaTime);
+
+        // Ré-appliquer la rotation fixe à chaque frame pour qu’elle reste figée
+        transform.rotation = Quaternion.Euler(fixedRotationEulerAngles);
     }
 }
