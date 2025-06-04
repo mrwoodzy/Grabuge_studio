@@ -51,6 +51,34 @@ class RigToolsPanel(bpy.types.Panel):
             row = box.row()
             row.operator("object.toggle_spine", text="Switch")
 
+        # Visibility section
+
+        layout.prop(scene, "show_visibility", icon="TRIA_DOWN" if scene.show_visibility else "TRIA_RIGHT", emboss=False)
+        if scene.show_visibility:
+            box = layout.box()
+            box.label(text="Arms Visibility")
+            # Première ligne : Left IK, Left FK, Right IK, Right FK
+            row = box.row(align=True)
+            row.prop(scene, "visLArmIK", text="Left IK")
+            row.prop(scene, "visLArmFK", text="Left FK")
+            row.prop(scene, "visRArmIK", text="Right IK")
+            row.prop(scene, "visRArmFK", text="Right FK")
+
+            box.label(text="Legs Visibility")
+            # Première ligne : Left IK, Left FK, Right IK, Right FK
+            row = box.row(align=True)
+            row.prop(scene, "visLLegIK", text="Left IK")
+            row.prop(scene, "visLLegFK", text="Left FK")
+            row.prop(scene, "visRLegIK", text="Right IK")
+            row.prop(scene, "visRLegFK", text="Right FK")
+
+            box.label(text="Spine Visibility")
+            # Ligne : IK, FK
+            row = box.row(align=True)
+            row.prop(scene, "visSpineIK", text="IK")
+            row.prop(scene, "visSpineFK", text="FK")
+
+
         # Match section
         layout.prop(scene, "show_match", icon="TRIA_DOWN" if scene.show_match else "TRIA_RIGHT", emboss=False)
         if scene.show_match:
@@ -126,6 +154,37 @@ def make_toggle_operator(idname, label, prop_name):
             return {'FINISHED'}
     return ToggleOperator
 
+def update_bone_collection_visibility(context):
+    armature = context.object
+    if not armature or armature.type != 'ARMATURE':
+        return
+
+    collections = armature.data.collections_all
+
+    collections.get("CTRL_Arm_L_IK").is_visible = context.scene.visLArmIK
+    collections.get("CTRL_Arm_L_FK").is_visible = context.scene.visLArmFK
+    collections.get("CTRL_Arm_R_IK").is_visible = context.scene.visRArmIK
+    collections.get("CTRL_Arm_R_FK").is_visible = context.scene.visRArmFK
+
+    collections.get("CTRL_Leg_L_IK").is_visible = context.scene.visLLegIK
+    collections.get("CTRL_Leg_L_FK").is_visible = context.scene.visLLegFK
+    collections.get("CTRL_Leg_R_IK").is_visible = context.scene.visRLegIK
+    collections.get("CTRL_Leg_R_FK").is_visible = context.scene.visRLegFK
+
+    collections.get("CTRL_Spine_IK").is_visible = context.scene.visSpineIK
+    collections.get("CTRL_Spine_FK").is_visible = context.scene.visSpineFK
+
+def update_visibility(self, context):
+    update_bone_collection_visibility(context)
+
+class RIG_OT_UpdateVisibility(bpy.types.Operator):
+    bl_idname = "rig.update_visibility"
+    bl_label = "Update Visibility"
+
+    def execute(self, context):
+        update_bone_collection_visibility(context)
+        return {'FINISHED'}
+
 
 # Match Operators
 class RIG_OT_MatchIKFK(bpy.types.Operator):
@@ -152,6 +211,7 @@ classes = [
     RigToolsPanel,
     RIG_OT_MatchIKFK,
     RIG_OT_MatchFKIK,
+    RIG_OT_UpdateVisibility
 ]
 
 toggle_ops = [
@@ -174,17 +234,28 @@ float_props = [
     "freeMoveHead", "freeMoveSpineIK"
 ]
 
+bool_props = [
+    "visLArmIK", "visLArmFK", "visRArmIK", "visRArmFK",
+    "visLLegIK", "visLLegFK", "visRLegIK", "visRLegFK",
+    "visSpineIK", "visSpineFK",
+    "show_visibility"
+]
+
 def register():
     for cls in classes:
         bpy.utils.register_class(cls)
     for idname, label, prop in toggle_ops:
         op_class = make_toggle_operator(idname, label, prop)
         bpy.utils.register_class(op_class)
+
     for prop in float_props:
         setattr(bpy.types.Scene, prop, bpy.props.FloatProperty(name=prop, default=0.0, min=0.0, max=1.0))
     bpy.types.Scene.show_switch = bpy.props.BoolProperty(name="Show Switch", default=True)
     bpy.types.Scene.show_match = bpy.props.BoolProperty(name="Show Match", default=True)
     bpy.types.Scene.show_freemove = bpy.props.BoolProperty(name="Show FreeMove", default=True)
+
+    for prop in bool_props:
+        setattr(bpy.types.Scene, prop, bpy.props.BoolProperty(name="Show Visibility", default=True, update=update_visibility))
 
 def unregister():
     for cls in classes:
@@ -194,6 +265,9 @@ def unregister():
         if op_class:
             bpy.utils.unregister_class(op_class)
     for prop in float_props + ["show_switch", "show_match", "show_freemove"]:
+        if hasattr(bpy.types.Scene, prop):
+            delattr(bpy.types.Scene, prop)
+    for prop in bool_props:
         if hasattr(bpy.types.Scene, prop):
             delattr(bpy.types.Scene, prop)
 
